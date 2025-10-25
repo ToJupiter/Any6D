@@ -59,7 +59,7 @@ setup(
 pip install 'setuptools<75'
 ```
 
-
+``` bash
 # create conda environment
 conda create -n Any6D python=3.9
 
