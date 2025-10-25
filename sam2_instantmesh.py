@@ -2,19 +2,8 @@ import torch
 import numpy as np
 import rembg
 import os
-import torchvision
 import trimesh
-
-from sam2.sam2.build_sam import build_sam2
-from sam2.sam2.sam2_image_predictor import SAM2ImagePredictor
-from instantmesh.src.utils.infer_util import remove_background, resize_foreground
-from instantmesh.src.utils.train_util import instantiate_from_config
-from instantmesh.src.utils.camera_util import FOV_to_intrinsics, get_zero123plus_input_cameras, get_circular_camera_poses
 from PIL import Image
-from omegaconf import OmegaConf
-
-from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler, StableDiffusionPipeline, StableDiffusionUpscalePipeline
-from einops import rearrange
 
 def save_obj(pointnp_px3, facenp_fx3, colornp_px3, fpath):
 
@@ -71,6 +60,10 @@ def get_bounding_box(d_model, pad_rel=0.00, return_torch=False):
 
 
 def running_sam_box(color, box=None,checkpoint="./sam2/checkpoints/sam2.1_hiera_large.pt", model_cfg = "./sam2/configs/sam2.1/sam2.1_hiera_l.yaml"):
+    # Lazy import SAM2 to avoid loading it in environments where it's unavailable
+    from sam2.sam2.build_sam import build_sam2
+    from sam2.sam2.sam2_image_predictor import SAM2ImagePredictor
+
     sam_predictor = SAM2ImagePredictor(build_sam2(model_cfg, checkpoint))
     with torch.inference_mode(), torch.autocast("cuda", dtype=torch.bfloat16):
         sam_predictor.set_image(color)
@@ -113,6 +106,8 @@ def preprocess_image(color, mask, debug_dir, name=None, rem_bg=True, target_brig
 
     # Remove background and resize
     if rem_bg:
+        # Lazy import to avoid InstantMesh deps at module import time
+        from instantmesh.src.utils.infer_util import remove_background, resize_foreground
         rembg_session = rembg.new_session()
         input_image = remove_background(Image.fromarray(input_image), rembg_session)
     else:
@@ -121,6 +116,8 @@ def preprocess_image(color, mask, debug_dir, name=None, rem_bg=True, target_brig
         input_image = input_image.convert("RGBA")
     if flip:
         input_image = input_image.transpose(Image.FLIP_LEFT_RIGHT)
+    # Lazy import (again) to keep scope local
+    from instantmesh.src.utils.infer_util import resize_foreground
     input_image = resize_foreground(input_image.convert("RGBA"), 0.80)
 
     # Save debug image if directory is provided
@@ -131,6 +128,11 @@ def preprocess_image(color, mask, debug_dir, name=None, rem_bg=True, target_brig
 
 
 def diffusion_image_generation(debug_dir, debug_input_dir, name=None,input_image=None,config_path = "./instantmesh/configs/instant-mesh-large.yaml"):
+    # Lazy imports specific to diffusion to avoid import-time conflicts
+    from omegaconf import OmegaConf
+    from diffusers import DiffusionPipeline, EulerAncestralDiscreteScheduler
+    from einops import rearrange
+
     if input_image == None:
         input_image = Image.open(os.path.join(debug_input_dir, f'input_{name}.png'))
 
@@ -160,6 +162,12 @@ def diffusion_image_generation(debug_dir, debug_input_dir, name=None,input_image
 
 
 def instant_mesh_process(images, debug_dir, name=None):
+    # Lazy imports for InstantMesh-specific utilities
+    import torchvision
+    from omegaconf import OmegaConf
+    from instantmesh.src.utils.train_util import instantiate_from_config
+    from instantmesh.src.utils.camera_util import get_zero123plus_input_cameras
+
     device = torch.device('cuda')
 
     config_path = "./instantmesh/configs/instant-mesh-large.yaml"

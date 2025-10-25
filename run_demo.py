@@ -54,11 +54,40 @@ if __name__=='__main__':
         input_box = np.array([cmin, rmin, cmax, rmax])[None, :]
         mask_refine = running_sam_box(color, input_box)
 
+        # Preprocess and save input image in the main env
         input_image = preprocess_image(color, mask_refine, save_path, obj)
-        images = diffusion_image_generation(save_path, save_path, obj, input_image=input_image)
-        instant_mesh_process(images, save_path, obj)
+        input_png = os.path.join(save_path, f'input_{obj}.png')
 
-        mesh = trimesh.load(os.path.join(save_path, f'mesh_{obj}.obj'))
+        # Run InstantMesh in its own environment via subprocess
+        output_mesh = os.path.join(save_path, f'mesh_{obj}.obj')
+
+        # Prefer conda-run invocation; adjust if using venv by replacing the prefix
+        import subprocess
+        cmd = [
+            'conda', 'run', '-n', 'instantmesh-py310',
+            'python', 'tools/instantmesh_worker.py',
+            '--input_image', input_png,
+            '--output_mesh', output_mesh,
+            '--name', obj,
+            '--config_path', './instantmesh/configs/instant-mesh-large.yaml',
+            '--save_dir', save_path,
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+        except FileNotFoundError:
+            # Fallback: try system python (assumes current shell is already inside the InstantMesh env)
+            cmd_fallback = [
+                'python', 'tools/instantmesh_worker.py',
+                '--input_image', input_png,
+                '--output_mesh', output_mesh,
+                '--name', obj,
+                '--config_path', './instantmesh/configs/instant-mesh-large.yaml',
+                '--save_dir', save_path,
+            ]
+            subprocess.run(cmd_fallback, check=True)
+
+        # Continue with alignment in the main env
+        mesh = trimesh.load(output_mesh)
         mesh = align_mesh_to_coordinate(mesh)
         mesh.export(os.path.join(save_path, f'center_mesh_{obj}.obj'))
 
