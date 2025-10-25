@@ -21,7 +21,7 @@ git+https://github.com/NVlabs/nvdiffrast/
 xformers==0.0.22.post7
 ninja==1.13.0
 onnxruntime
-setuptools==69.5.1
+setuptools
 
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.1.0
