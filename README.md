@@ -21,7 +21,45 @@ We introduce Any6D, a model-free framework for 6D object pose estimation that re
 
 
 # Installation
+
+**Changes**:
+1. Install boost from conda:
 ```
+conda install conda-forge::boost
+```
+
+2. Look in the file [Foundation_Pose_Setup](foundationpose/bundlesdf/mycuda/setup.py) and change these lines:
+``` python
+setup(
+    name='common',
+    extra_cflags=c_flags,
+    extra_cuda_cflags=nvcc_flags,
+    ext_modules=[
+        CUDAExtension('common', [
+            'bindings.cpp',
+            'common.cu',
+        ],extra_compile_args={'gcc': c_flags, 'nvcc': nvcc_flags}),
+        CUDAExtension('gridencoder', [
+            f"{code_dir}/torch_ngp_grid_encoder/gridencoder.cu",
+            f"{code_dir}/torch_ngp_grid_encoder/bindings.cpp",
+        ],extra_compile_args={'gcc': c_flags, 'nvcc': nvcc_flags}),
+    ],
+    include_dirs=[
+        # Include your path to eigen3 in conda environment here instead!
+        # "/usr/local/include/eigen3",
+        # "/usr/include/eigen3",
+    ],
+    cmdclass={
+        'build_ext': BuildExtension
+})
+```
+
+3. Change setuptools version:
+``` bash
+pip install 'setuptools<75'
+```
+
+
 # create conda environment
 conda create -n Any6D python=3.9
 

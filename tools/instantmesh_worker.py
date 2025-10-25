@@ -5,6 +5,25 @@ import numpy as np
 import torchvision
 from PIL import Image
 from omegaconf import OmegaConf
+import sys
+
+# Ensure local repo root is importable (so 'instantmesh' package resolves even if not pip-installed here)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+try:
+    from instantmesh.src.utils.train_util import instantiate_from_config
+    from instantmesh.src.utils.camera_util import get_zero123plus_input_cameras
+    # import other instantmesh.* deps here as needed
+except ModuleNotFoundError as e:
+    raise ModuleNotFoundError(
+        f"Failed to import 'instantmesh' package in this interpreter. "
+        f"Either keep this sys.path injection or install the package in this env:\n"
+        f"  conda run -n instantmesh-py310 python -m pip install -e ./instantmesh\n"
+        f"Current REPO_ROOT on sys.path: {REPO_ROOT}"
+    ) from e
+
 
 
 def save_obj(vertices, faces, colors, fpath):
